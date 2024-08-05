@@ -1,13 +1,8 @@
-package presentation.screen.components
+package presentation.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -19,11 +14,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import domain.ToDoTask
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import todokmp.composeapp.generated.resources.Res
 import todokmp.composeapp.generated.resources.compose_multiplatform
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 fun TaskView(
     task: ToDoTask,
@@ -46,14 +43,15 @@ fun TaskView(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = task.completed,
-                onCheckedChange = { onComplete(task, !task.completed) }
+                onCheckedChange = { onComplete(task, !task.completed) },
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 modifier = Modifier.alpha(if (showActive) 1f else 0.5f),
                 text = task.title,
                 fontSize = MaterialTheme.typography.bodyMedium.fontSize,
-                textDecoration = if (showActive) TextDecoration.None else TextDecoration.LineThrough
+                textDecoration = if (showActive) TextDecoration.None
+                else TextDecoration.LineThrough
             )
         }
         IconButton(
@@ -64,10 +62,13 @@ fun TaskView(
         ) {
             Icon(
                 painter = painterResource(
-                    if (showActive) Res.drawable.compose_multiplatform else Res.drawable.compose_multiplatform
+                    if (showActive) Res.drawable.compose_multiplatform
+                    else Res.drawable.compose_multiplatform
                 ),
-                contentDescription = if (showActive) "Favorite Icon" else "Delete Icon",
-                tint = if (task.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                contentDescription = "Favorite Icon",
+                tint = if (task.favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = 0.38f
+                )
             )
         }
     }

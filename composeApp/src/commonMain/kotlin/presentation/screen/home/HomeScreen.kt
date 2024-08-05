@@ -31,74 +31,97 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.getScreenModel
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import domain.RequestState
+import domain.TaskAction
 import domain.ToDoTask
+import presentation.components.TaskView
 import presentation.screen.components.ErrorScreen
 import presentation.screen.components.LoadingScreen
-import presentation.screen.components.TaskView
 
-class HomeScreen : Screen{
+import presentation.screen.task.TaskScreen
+
+class HomeScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
         val viewModel = getScreenModel<HomeViewModel>()
         val activeTasks by viewModel.activeTasks
         val completedTasks by viewModel.completedTasks
 
         Scaffold(
             topBar = {
-                CenterAlignedTopAppBar(title = { Text("Home") })
+                CenterAlignedTopAppBar(title = { Text(text = "Home") })
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { },
+                    onClick = { navigator.push(TaskScreen()) },
                     shape = RoundedCornerShape(size = 12.dp)
-                ){
+                ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Icon"
                     )
                 }
             }
-        ){ padding ->
-            Column (
+        ) { padding ->
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = 24.dp)
                     .padding(
                         top = padding.calculateTopPadding(),
-                        bottom = padding.calculateBottomPadding(),
+                        bottom = padding.calculateBottomPadding()
                     )
-            ){
-                DisplayTask(
+            ) {
+                DisplayTasks(
                     modifier = Modifier.weight(1f),
                     tasks = activeTasks,
-                    onSelect = {},
-                    onComplete = { task, isFavorite -> },
-                    onFavorite = { task, completed -> }
+                    onSelect = { selectedTask ->
+                        navigator.push(TaskScreen(selectedTask))
+                    },
+                    onFavorite = { task, isFavorite ->
+                        viewModel.setAction(
+                            action = TaskAction.SetFavorite(task, isFavorite)
+                        )
+                    },
+                    onComplete = { task, completed ->
+                        viewModel.setAction(
+                            action = TaskAction.SetCompleted(task, completed)
+                        )
+                    }
                 )
                 Spacer(modifier = Modifier.height(24.dp))
-                DisplayTask(
+                DisplayTasks(
                     modifier = Modifier.weight(1f),
                     tasks = completedTasks,
-                    onSelect = {},
-                    onComplete = { task, completed -> },
-                    onDelete = { }
+                    showActive = false,
+                    onComplete = { task, completed ->
+                        viewModel.setAction(
+                            action = TaskAction.SetCompleted(task, completed)
+                        )
+                    },
+                    onDelete = { task ->
+                        viewModel.setAction(
+                            action = TaskAction.Delete(task)
+                        )
+                    }
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DisplayTask(
+fun DisplayTasks(
     modifier: Modifier = Modifier,
     tasks: RequestState<List<ToDoTask>>,
     showActive: Boolean = true,
     onSelect: ((ToDoTask) -> Unit)? = null,
-    onFavorite: ((ToDoTask, Any?) -> Unit)? = null,
-    onComplete: (ToDoTask, Any?) -> Unit,
+    onFavorite: ((ToDoTask, Boolean) -> Unit)? = null,
+    onComplete: (ToDoTask, Boolean) -> Unit,
     onDelete: ((ToDoTask) -> Unit)? = null
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -106,42 +129,42 @@ fun DisplayTask(
 
     if (showDialog) {
         AlertDialog(
-            title = { Text("Delete Task") },
+            title = {
+                Text(text = "Delete", fontSize = MaterialTheme.typography.titleLarge.fontSize)
+            },
             text = {
                 Text(
-                    text = "Are you sure you want to remove '${taskToDelete!!.title}?",
+                    text = "Are you sure you want to remove '${taskToDelete!!.title}' task?",
                     fontSize = MaterialTheme.typography.bodyMedium.fontSize
                 )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        onDelete?.invoke(taskToDelete!!)
-                        showDialog = false
-                        taskToDelete = null
-                    }
-                ) {
-                    Text("Yes")
+                Button(onClick = {
+                    onDelete?.invoke(taskToDelete!!)
+                    showDialog = false
+                    taskToDelete = null
+                }) {
+                    Text(text = "Yes")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
-                        showDialog = false
                         taskToDelete = null
+                        showDialog = false
                     }
                 ) {
-                    Text("Cancel")
+                    Text(text = "Cancel")
                 }
             },
             onDismissRequest = {
-                showDialog = false
                 taskToDelete = null
+                showDialog = false
             }
         )
     }
 
-    Column ( modifier = Modifier.fillMaxWidth()){
+    Column(modifier = modifier.fillMaxWidth()) {
         Text(
             modifier = Modifier.padding(horizontal = 12.dp),
             text = if (showActive) "Active Tasks" else "Completed Tasks",
@@ -153,20 +176,20 @@ fun DisplayTask(
             onLoading = { LoadingScreen() },
             onError = { ErrorScreen(message = it) },
             onSuccess = {
-                if(it.isNotEmpty()){
-                    LazyColumn(modifier = Modifier.padding(horizontal = 24.dp)){
+                if (it.isNotEmpty()) {
+                    LazyColumn(modifier = Modifier.padding(horizontal = 24.dp)) {
                         items(
                             items = it,
-                            key = {task -> task._id}
-                        ){ task ->
+                            key = { task -> task._id.toHexString() }
+                        ) { task ->
                             TaskView(
                                 showActive = showActive,
                                 task = task,
-                                onSelect = { onSelect?.invoke(it) },
-                                onComplete = {selectedTask, completed ->
+                                onSelect = { onSelect?.invoke(task) },
+                                onComplete = { selectedTask, completed ->
                                     onComplete(selectedTask, completed)
                                 },
-                                onFavorite = {selectedTask, favorite ->
+                                onFavorite = { selectedTask, favorite ->
                                     onFavorite?.invoke(selectedTask, favorite)
                                 },
                                 onDelete = { selectedTask ->
@@ -174,11 +197,9 @@ fun DisplayTask(
                                     showDialog = true
                                 }
                             )
-
                         }
                     }
-
-                }else{
+                } else {
                     ErrorScreen()
                 }
             }
