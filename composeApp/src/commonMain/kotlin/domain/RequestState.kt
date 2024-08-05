@@ -9,7 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 
-sealed class RequestState<T> {
+sealed class RequestState<out T> {
 
     data object Idle : RequestState<Nothing>()
     data object Loading : RequestState<Nothing>()

@@ -1,0 +1,49 @@
+package data
+
+import domain.RequestState
+import domain.ToDoTask
+import io.realm.kotlin.Realm
+import io.realm.kotlin.RealmConfiguration
+import io.realm.kotlin.ext.query
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+
+class MongoDB {
+    var realm: Realm? = null
+
+    private fun configureTheRealm() {
+        if (realm == null || realm!!.isClosed()) {
+            val config = RealmConfiguration.Builder(
+                schema = setOf(ToDoTask::class)
+            )
+                .compactOnLaunch()
+                .build()
+        }
+    }
+
+    fun readAllTasks(): Flow<RequestState<List<ToDoTask>>> {
+        return realm?.query<ToDoTask>(query = "completed == $0", false)
+            ?.asFlow()
+            ?.map { result ->
+                RequestState.Success(
+                    data = result.list.sortedByDescending { task -> task.favorite }
+                )
+
+            } ?: flow { RequestState.Error("Realm is not configured") }
+    }
+
+    fun readCompletedTasks(): Flow<RequestState<List<ToDoTask>>> {
+        return realm?.query<ToDoTask>(query = "completed == $0", false)
+            ?.asFlow()
+            ?.map { result ->
+                RequestState.Success(data = result.list)
+            } ?: flow { RequestState.Error("Realm is not configured") }
+    }
+
+    suspend fun addTask(task: ToDoTask) {
+        realm?.write {
+            copyToRealm(task)
+        }
+    }
+}
